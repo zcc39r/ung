@@ -1,16 +1,17 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     0.1
+// @version     1.0.0
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
-// @match       https://lk.genotek.ru/ancestry/relatives
+// @match       https://lk.genotek.ru/*
+// @grant       unsafeWindow
 // @updateURL   https://raw.githubusercontent.com/zcc39r/ung/master/ung.user.js
 // @downloadURL https://raw.githubusercontent.com/zcc39r/ung/master/ung.user.js
 // @supportURL  https://github.com/zcc39r/ung/issues
 // ==/UserScript==
 
-var relatives;
+var relatives = new Map();
 var me;
 
 var observeDOM = (function(){
@@ -30,9 +31,19 @@ var observeDOM = (function(){
   }
 })()
 
+function getCurrentTubeId() {
+    const currentPatient = JSON.parse(unsafeWindow.localStorage.getItem('currentPatient'));
+    return ((currentPatient || {}).tubeId || '').toUpperCase();
+}
+
+function getCurrentName() {
+    const currentPatient = JSON.parse(unsafeWindow.localStorage.getItem('currentPatient'));
+    return `${(currentPatient || {}).name || ''} ${(currentPatient || {}).lastName || ''}`;
+}
+
 function getContent() {
     let c = `<html>
-    <head><title>Родственники</title>
+    <head><title>${getCurrentName()}: родственники</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <style>
     TABLE {
@@ -79,27 +90,27 @@ function ts_makeSortable(table) {
 }
 
 function ts_getInnerText(el) {
-	if (typeof el == "string") return el;
-	if (typeof el == "undefined") { return el };
-	if (el.innerText) return el.innerText;
-	var str = "";
-	var x = "";
+        if (typeof el == "string") return el;
+        if (typeof el == "undefined") { return el };
+        if (el.innerText) return el.innerText;
+        var str = "";
+        var x = "";
 
-	var cs = el.childNodes;
-	var l = cs.length;
+        var cs = el.childNodes;
+        var l = cs.length;
 
-	for (var i = 0; i < l && x.length == 0; i++) {
-		switch (cs[i].nodeType) {
-			case 1:
-				str += ts_getInnerText(cs[i]);
- 				break;
-			case 3:
-				str += cs[i].nodeValue;
- 				break;
-		}
+        for (var i = 0; i < l && x.length == 0; i++) {
+                switch (cs[i].nodeType) {
+                        case 1:
+                                str += ts_getInnerText(cs[i]);
+                                break;
+                        case 3:
+                                str += cs[i].nodeValue;
+                                break;
+                }
                 x = str.replace(\/(\\s+)\/g, "");
-	}
-	return str;
+        }
+        return str;
 }
 
 function ts_resortTable(lnk,clid) {
@@ -149,11 +160,11 @@ function ts_resortTable(lnk,clid) {
 }
 
 function getParent(el, pTagName) {
-	if (el == null) return null;
-	else if (el.nodeType == 1 && el.tagName.toLowerCase() == pTagName.toLowerCase())
-		return el;
-	else
-		return getParent(el.parentNode, pTagName);
+        if (el == null) return null;
+        else if (el.nodeType == 1 && el.tagName.toLowerCase() == pTagName.toLowerCase())
+                return el;
+        else
+                return getParent(el.parentNode, pTagName);
 }
 function ts_sort_date(a,b) {
     aa = ts_getInnerText(a.cells[SORT_COLUMN_INDEX]);
@@ -227,7 +238,7 @@ function addEvent(elm, evType, fn, useCapture) {
 }
     </script>
     </head>
-    <body><table>
+    <body><table><caption>${getCurrentName()}: родственники</caption>
     <thead>
     <tr>
     <th class="c" id="0">Имя</th>
@@ -240,7 +251,7 @@ function addEvent(elm, evType, fn, useCapture) {
     </tr>
     </thead>
     <tbody>`;
-    relatives.forEach(r => { c+= `<tr id="${r.tube_relative.tubeId}">
+    relatives.get(getCurrentTubeId()).forEach(r => { c+= `<tr id="${r.tube_relative.tubeId.toUpperCase()}">
     <td>${r.relative_info.last_name || ''}, ${r.relative_info.name || ''} ${r.relative_info.second_name || ''}</td>
     <td class="c">${r.relative_info.age || '-'}</td>
     <td class="c">${r.relative_info.gender === 'male' ? 'М' : 'Ж'}</td>
@@ -257,7 +268,7 @@ function addEvent(elm, evType, fn, useCapture) {
 }
 
 function addMyControls() {
-    const toolbar = document.getElementsByClassName('find-relation__filters-flex')[0];
+    const toolbar = document.querySelector('.find-relation__filters-flex:not(.shimmer)');
     if (toolbar && toolbar.querySelector('#ung') === null) {
         let downloadLink = document.createElement('a');
         downloadLink.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(getContent()));
@@ -271,15 +282,18 @@ function addMyControls() {
 (function(open) {
     XMLHttpRequest.prototype.open = function() {
         this.addEventListener("readystatechange", function() {
-            if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/') || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/')) {
+            if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/') || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/')
+) {
                 if (this.readyState == 2) {
                     this.responseType='json';
                 }
                 if (this.readyState == 4) {
                     if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/')) {
                         if (this.response.relatives) {
-                            relatives = this.response.relatives;
-                            if (document.getElementsByClassName('find-relation__filters-flex').length > 0) {
+                            const u = new URL(this.responseURL);
+                            const tubeId = u.pathname.substring(u.pathname.lastIndexOf('/') + 1);
+                            relatives.set(tubeId, this.response.relatives);
+                            if (getCurrentTubeId() === tubeId) {
                                 addMyControls();
                             }
                         }
@@ -294,8 +308,10 @@ function addMyControls() {
     }
 })(XMLHttpRequest.prototype.open);
 
-observeDOM(document.body, function(m){
-   if (document.getElementsByClassName('find-relation__filters-flex').length > 0 && relatives) {
+observeDOM(document.body, function(m) {
+   if (relatives.has(getCurrentTubeId())) {
       addMyControls();
    }
 });
+
+console.log('Uꞑ');
