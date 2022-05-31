@@ -109,10 +109,7 @@ function toggle(id) {
     input.checked == !input.checked;
 
     const selected = Array.from(form.querySelectorAll('input[type=checkbox]:checked')).map(i => i.name);
-    console.log('sel', selected);
-    console.log('x', Array.from(allTubes.filter(i => selected.includes(i[0]))).map(i => i[1].matches));
     const matches = (selected.length > 0) ? Array.from(allTubes.filter(i => selected.includes(i[0]))).map(i => i[1].matches).reduce((p, c) => p.filter(x => c.includes(x))) : [];
-    console.log('m', matches);
     const rows = Array.from(document.querySelectorAll('tr[id]'));
     rows.forEach(r => r.style.display = (selected.length == 0 || matches.includes(r.id)) ? "table-row" : 'none');
 }
