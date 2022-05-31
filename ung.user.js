@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.1.1
+// @version     1.2.0
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -303,6 +303,7 @@ function addEvent(elm, evType, fn, useCapture) {
     <th class="c" id="4">Mt</th>
     <th class="c" id="5">Y</th>
     <th class="c" id="6">Дата</th>
+    <th class="c">Возможные фамилии</th>
     </tr>
     </thead>
     <tbody>`;
@@ -314,6 +315,7 @@ function addEvent(elm, evType, fn, useCapture) {
     <td class="c">${r.tube_relative.maternalHaplogroup || ''}</td>
     <td class="c">${r.tube_relative.paternalHaplogroup || ''}</td>
     <td class="c">${r.tube_relative.date || ''}</td>
+    <td class="c">${(r.tube_relative.genealogicalTreeSurnames || []).sort().join(', ')}</td>
     </tr>`});
     c += `</tbody>
     </table>
