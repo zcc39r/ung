@@ -12,6 +12,7 @@
 // ==/UserScript==
 
 var relatives = new Map();
+var allTubesAvailable = new Map();
 var me;
 
 var observeDOM = (function(){
@@ -22,7 +23,7 @@ var observeDOM = (function(){
 
     if (MutationObserver) {
       var mutationObserver = new MutationObserver(callback)
-      mutationObserver.observe( obj, { childList:true, subtree:true })
+      mutationObserver.observe(obj, { childList:true, subtree:true })
       return mutationObserver
     } else if( window.addEventListener ){
       obj.addEventListener('DOMNodeInserted', callback, false)
@@ -42,6 +43,17 @@ function getCurrentName() {
 }
 
 function getContent() {
+    const tubeId = getCurrentTubeId();
+    me.patients.concat(me.shared).filter(r => !allTubesAvailable.has(r.tubeId) && r.tubeId.length > 0).forEach(r => {
+        let x = new Object();
+        x.name = r.name + (' ' + r.secondName + ' ').replaceAll("\\s+", " ") + r.lastName;
+        allTubesAvailable.set(r.tubeId.toUpperCase(), x);
+    });
+    allTubesAvailable.forEach((v, k) => {
+        if (v.matches === undefined || v.matches.length == 0) {
+            v.matches = (relatives.get(k) || []).map(r => r.tube_relative.tubeId.toUpperCase());
+        }
+    });
     let c = `<html>
     <head><title>${getCurrentName()}: родственники</title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -62,7 +74,48 @@ function getContent() {
     }
     </style>
     <script type="text/javascript">
-addEvent(window, "load", sortables_init);
+    var allTubes = ${JSON.stringify(Array.from(allTubesAvailable.entries()))};
+addEvent(window, "load", startup);
+
+function startup() {
+    sortables_init();
+    addInCommonFilter();
+}
+
+function addInCommonFilter() {
+    const form = document.getElementById('inCommon');
+    const myId = document.querySelector('.main').id;
+    const others = allTubes.filter(i => i[0] !== myId && i[1].matches.length > 0);
+    if (others.length > 0) {
+        let label = document.createElement('label');
+        label.innerHTML = 'Общие с: ';
+        form.appendChild(label);
+    }
+    others.forEach(i => {
+        let input = document.createElement('input');
+        input.setAttribute('type', 'checkbox');
+        input.setAttribute('name', i[0]);
+        input.setAttribute('onClick', "toggle('" + i[0] + "')");
+        form.appendChild(input);
+        let name = document.createElement('span');
+        name.innerHTML = i[1].name;
+        form.appendChild(name);
+    });
+}
+
+function toggle(id) {
+    const form = document.getElementById('inCommon');
+    const input = form.querySelector('input[name='+ id + ']');
+    input.checked == !input.checked;
+
+    const selected = Array.from(form.querySelectorAll('input[type=checkbox]:checked')).map(i => i.name);
+    console.log('sel', selected);
+    console.log('x', Array.from(allTubes.filter(i => selected.includes(i[0]))).map(i => i[1].matches));
+    const matches = (selected.length > 0) ? Array.from(allTubes.filter(i => selected.includes(i[0]))).map(i => i[1].matches).reduce((p, c) => p.filter(x => c.includes(x))) : [];
+    console.log('m', matches);
+    const rows = Array.from(document.querySelectorAll('tr[id]'));
+    rows.forEach(r => r.style.display = (selected.length == 0 || matches.includes(r.id)) ? "table-row" : 'none');
+}
 
 var SORT_COLUMN_INDEX;
 
@@ -238,7 +291,12 @@ function addEvent(elm, evType, fn, useCapture) {
 }
     </script>
     </head>
-    <body><table><caption>${getCurrentName()}: родственники</caption>
+    <body>
+    <div>
+    <form id="inCommon">
+    </form>
+    </div>
+    <table class="main" id="${tubeId}"><caption>${getCurrentName()}: родственники</caption>
     <thead>
     <tr>
     <th class="c" id="0">Имя</th>
