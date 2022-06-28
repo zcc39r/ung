@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.3.0
+// @version     1.3.1
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -332,6 +332,10 @@ function getRootPersonId() {
 function dateToString(d) {
     let res = '';
 
+    if (d == null) {
+        return res;
+    }
+
     if (d.year != null) {
         res = d.year;
     }
@@ -463,7 +467,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.3.0');
+    e.setAttribute('version', 'Uꞑ-1.3.1');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
@@ -543,7 +547,7 @@ function getGGContent() {
 
             let marriageId = 'm' + ((n.type === 'FEMALE') ? r.with + '_' + n.id : n.id + '_' + r.with);
             if (d.querySelector('#' + marriageId) == null) {
-                addEvent(d, events, places, 'Marriage', r.from[0], null, marriageId);
+                addEvent(d, events, places, 'Marriage', (r.from || [])[0], null, marriageId);
             }
             e = d.createElement('eventref');
             e.setAttribute('hlink', marriageId);
@@ -558,7 +562,7 @@ function getGGContent() {
             if (r.finished === 1) {
                 let divorceId = 'd' + ((n.type === 'FEMALE') ? r.with + '_' + n.id : n.id + '_' + r.with);
                 if (d.querySelector('#' + divorceId) == null) {
-                    addEvent(d, events, places, 'Divorce', r.to[0], null, divorceId);
+                    addEvent(d, events, places, 'Divorce', (r.to || [])[0], null, divorceId);
                 }
                 e = d.createElement('eventref');
                 e.setAttribute('hlink', divorceId);
