@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.2.0
+// @version     1.3.0
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -14,6 +14,7 @@
 var relatives = new Map();
 var allTubesAvailable = new Map();
 var me;
+var gg;
 
 var observeDOM = (function(){
   var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
@@ -42,7 +43,7 @@ function getCurrentName() {
     return `${(currentPatient || {}).name || ''} ${(currentPatient || {}).lastName || ''}`;
 }
 
-function getContent() {
+function getRelativesContent() {
     const tubeId = getCurrentTubeId();
     me.patients.concat(me.shared).filter(r => !allTubesAvailable.has(r.tubeId) && r.tubeId.length > 0).forEach(r => {
         let x = new Object();
@@ -324,33 +325,330 @@ function addEvent(elm, evType, fn, useCapture) {
     return c;
 }
 
+function getRootPersonId() {
+    return gg.nodes.find(n => n.relationName === 'Я').id;
+}
+
+function dateToString(d) {
+    let res = '';
+
+    if (d.year != null) {
+        res = d.year;
+    }
+    if (d.month != null) {
+        res += '-' + String(d.month).padStart(2, 0);
+    }
+    if (d.day != null) {
+        res += '-' + String(d.day).padStart(2, 0);
+    }
+
+    return res;
+}
+
+function addPlace(d, places, name, type, ref) {
+    let place = d.createElement('placeobj');
+    place.setAttribute('handle', name);
+    place.setAttribute('id', name);
+    place.setAttribute('type', type);
+    let e = d.createElement('ptitle');
+    e.innerHTML = name;
+    place.appendChild(e);
+    e = d.createElement('pname');
+    e.setAttribute('value', name);
+    place.appendChild(e);
+    if (ref != null) {
+        e = d.createElement('placeref');
+        e.setAttribute('hlink', ref);
+        place.appendChild(e);
+    }
+    places.appendChild(place);
+}
+
+function processPlace(d, places, place) {
+    let placeId = null;
+
+    const { country, region, area, city, settlement } = place;
+    if (country != null) {
+        if (places.querySelector('#' + country) == null) {
+            addPlace(d, places, country, 'Country', null);
+        }
+        placeId = country;
+    }
+    if (region != null) {
+        if (places.querySelector('#' + region) == null) {
+            addPlace(d, places, region, 'State', country);
+        }
+        placeId = region;
+    }
+    if (area != null) {
+        if (places.querySelector('#' + area) == null) {
+            addPlace(d, places, area, 'County', region || country);
+        }
+        placeId = area;
+    }
+    if (city != null) {
+        if (places.querySelector('#' + city) == null) {
+            addPlace(d, places, city, 'City', area || region || country);
+        }
+        placeId = city;
+    }
+    if (settlement != null) {
+        if (places.querySelector('#' + settlement) == null) {
+            addPlace(d, places, settlement, 'Village', city || area || region || country);
+        }
+        placeId = settlement;
+    }
+
+    return placeId;
+}
+
+function addEvent(d, events, places, type, date, place, id) {
+    let x = dateToString(date);
+    const eventId = (id == null) ? 'e' + self.crypto.randomUUID() : id;
+    let event = d.createElement('event');
+    event.setAttribute('handle', eventId);
+    event.setAttribute('id', eventId);
+    let e = d.createElement('type');
+    e.innerHTML = type;
+    event.appendChild(e);
+    if (x !== '') {
+        e = d.createElement('dateval');
+        e.setAttribute('val', x);
+        event.appendChild(e);
+    }
+    if (place != null && place.length > 0) {
+        const placeId = processPlace(d, places, place[0]);
+        if (placeId != null) {
+            e = d.createElement('place');
+            e.setAttribute('hlink', placeId);
+            event.appendChild(e);
+        }
+    }
+    events.appendChild(event);
+
+    return eventId;
+}
+
+function addFamily(d, families, type, id) {
+    const familyId = (id == null) ? self.crypto.randomUUID() : id;
+    let family = d.createElement('family');
+    family.setAttribute('handle', familyId);
+    family.setAttribute('id', familyId);
+    let e = d.createElement('rel');
+    e.setAttribute('type', type);
+    family.appendChild(e);
+    families.appendChild(family);
+
+    return family;
+}
+
+function getParentFamily(families, relatives) {
+    let res = null;
+
+    const parentId = (relatives.filter(r => r.relationType === 'parent')[0] || {}).id;
+    if (parentId != null) {
+        const parent = families.querySelector('father[hlink=p' + parentId + '], mother[hlink=p' + parentId + ']');
+        if (parent != null) {
+            res = parent.parentElement;
+        }
+    }
+
+    return res;
+}
+
+function getGGContent() {
+    const d = document.implementation.createDocument('http://gramps-project.org/xml/1.7.1/', 'database');
+    const root = d.documentElement;
+    const h = d.createElement('header');
+    root.appendChild(h);
+    let e = d.createElement('created');
+    e.setAttribute('date', new Date().toISOString().slice(0, 10));
+    e.setAttribute('version', 'Uꞑ-1.3.0');
+    h.appendChild(e);
+    let rs = d.createElement('researcher');
+    e = d.createElement('resname');
+    e.innerHTML = getCurrentName();
+    rs.appendChild(e);
+    h.appendChild(rs);
+    const events = d.createElement('events');
+    root.appendChild(events);
+    const people = d.createElement('people');
+    people.setAttribute('home', 'p' + getRootPersonId());
+    root.appendChild(people);
+    const families = d.createElement('families');
+    root.appendChild(families);
+    const places = d.createElement('places');
+    root.appendChild(places);
+    gg.nodes.filter(n => !(n.id.startsWith('imaginary') || n.id.startsWith('fake'))).forEach(n => {
+        let person = d.createElement('person');
+        person.setAttribute('handle', 'p' + n.id);
+        person.setAttribute('id', 'p' + n.id);
+        e = d.createElement('gender');
+        e.innerHTML = (n.type === 'FEMALE') ? 'F' : 'M';
+        person.appendChild(e);
+        let name = d.createElement('name');
+        name.setAttribute('type', 'Birth Name');
+        if (n.card.name.length > 0) {
+            e = d.createElement('first');
+            e.innerHTML = n.card.name[0];
+            name.appendChild(e);
+        }
+        if (n.card.surname.length > 0) {
+            e = d.createElement('surname');
+            e.setAttribute('derivation', n.card.maidenName.length > 0 ? "Taken" : "Given");
+            e.innerHTML = n.card.surname[0];
+            name.appendChild(e);
+        }
+        if (n.card.maidenName.length > 0) {
+            e = d.createElement('surname');
+            e.setAttribute('derivation', "Given");
+            e.setAttribute('prim', "0");
+            e.innerHTML = n.card.maidenName[0];
+            name.appendChild(e);
+        }
+        if (n.card.middleName.length > 0) {
+            e = d.createElement('surname');
+            e.setAttribute('derivation', "Patronymic");
+            e.setAttribute('prim', "0");
+            e.innerHTML = n.card.middleName[0];
+            name.appendChild(e);
+        }
+        person.appendChild(name);
+        if (n.card.birthdate.length > 0) {
+            const eventId = addEvent(d, events, places, 'Birth', n.card.birthdate[0], n.card.birthplaceParsed, null);
+            e = d.createElement('eventref');
+            e.setAttribute('hlink', eventId);
+            e.setAttribute('role', 'Primary');
+            person.appendChild(e);
+        }
+        if (n.card.deathdate.length > 0 && n.card.liveOrDead === 0) {
+            const eventId = addEvent(d, events, places, 'Death', n.card.deathdate[0], n.card.deathplaceParsed, null);
+            e = d.createElement('eventref');
+            e.setAttribute('hlink', eventId);
+            e.setAttribute('role', 'Primary');
+            person.appendChild(e);
+        }
+        n.card.relationships.forEach(r => {
+            let familyId = 'f' + ((n.type === 'FEMALE') ? r.with + '_' + n.id : n.id + '_' + r.with);
+            let family = d.querySelector('#' + familyId);
+            if (family == null) {
+                family = addFamily(d, families, (r.type === 'official') ? ((r.finished === 1) ? 'Unmarried' : 'Married') : 'Unknown', familyId);
+            }
+            e = d.createElement((n.type === 'FEMALE') ? 'mother' : 'father');
+            e.setAttribute('hlink', 'p' + n.id);
+            family.appendChild(e);
+            e = d.createElement('parentin');
+            e.setAttribute('hlink', familyId);
+            person.appendChild(e);
+
+            let marriageId = 'm' + ((n.type === 'FEMALE') ? r.with + '_' + n.id : n.id + '_' + r.with);
+            if (d.querySelector('#' + marriageId) == null) {
+                addEvent(d, events, places, 'Marriage', r.from[0], null, marriageId);
+            }
+            e = d.createElement('eventref');
+            e.setAttribute('hlink', marriageId);
+            e.setAttribute('role', 'Primary');
+            person.appendChild(e);
+            if (families.querySelector('family eventref[hlink=' + marriageId + ']') == null) {
+                e = d.createElement('eventref');
+                e.setAttribute('hlink', marriageId);
+                e.setAttribute('role', 'Family');
+                family.appendChild(e);
+            }
+            if (r.finished === 1) {
+                let divorceId = 'd' + ((n.type === 'FEMALE') ? r.with + '_' + n.id : n.id + '_' + r.with);
+                if (d.querySelector('#' + divorceId) == null) {
+                    addEvent(d, events, places, 'Divorce', r.to[0], null, divorceId);
+                }
+                e = d.createElement('eventref');
+                e.setAttribute('hlink', divorceId);
+                e.setAttribute('role', 'Primary');
+                person.appendChild(e);
+                if (families.querySelector('family eventref[hlink=' + divorceId + ']') == null) {
+                    e = d.createElement('eventref');
+                    e.setAttribute('hlink', divorceId);
+                    e.setAttribute('role', 'Family');
+                    family.appendChild(e);
+                }
+            }
+        });
+        if (n.card.relationships.length === 0 && n.card.relatives.filter(r => r.relationType === 'child').length > 0) {
+            let familyId = 'f' + ((n.type === 'FEMALE') ? '_' + n.id : n.id + '_');
+            let family = addFamily(d, families, 'Unknown', familyId);
+            e = d.createElement((n.type === 'FEMALE') ? 'mother' : 'father');
+            e.setAttribute('hlink', 'p' + n.id);
+            family.appendChild(e);
+            e = d.createElement('parentin');
+            e.setAttribute('hlink', familyId);
+            person.appendChild(e);
+        }
+        people.appendChild(person);
+    });
+    gg.nodes.filter(n => !(n.id.startsWith('imaginary') || n.id.startsWith('fake'))).forEach(n => {
+        const person = people.querySelector('#p' + n.id);
+        const parentFamily = getParentFamily(families, n.card.relatives);
+        if (parentFamily != null) {
+            e = d.createElement('childref');
+            e.setAttribute('hlink', 'p' + n.id);
+            parentFamily.appendChild(e);
+            e = d.createElement('childof');
+            e.setAttribute('hlink', parentFamily.getAttribute('handle'));
+            person.appendChild(e);
+        }
+    });
+    return new XMLSerializer().serializeToString(d.documentElement);
+}
+
 function addMyControls() {
     const toolbar = document.querySelector('.find-relation__filters-flex:not(.shimmer)');
     if (toolbar && toolbar.querySelector('#ung') === null) {
         let downloadLink = document.createElement('a');
-        downloadLink.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(getContent()));
+        downloadLink.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(getRelativesContent()));
         downloadLink.setAttribute('download', 'ung.html');
         downloadLink.setAttribute('id', 'ung');
         downloadLink.innerHTML = '<i class="fa fa-download fa-lg" aria-hidden="true"></i>';
         toolbar.appendChild(downloadLink);
+    }
+    const tree_actions = document.querySelector('.find-relation-graph__modal-header, app-genealogical-tree h1 span');
+    if (gg != null && tree_actions && tree_actions.querySelector('#unggg') === null) {
+        let downloadLink = document.createElement('a');
+        downloadLink.setAttribute('href', 'data:application/xml;charset=utf-8,' + encodeURIComponent(getGGContent()));
+        downloadLink.setAttribute('download', 'ung.gramps');
+        downloadLink.setAttribute('id', 'unggg');
+        downloadLink.innerHTML = '<i class="fa fa-download fa-lg" aria-hidden="true"></i>';
+        tree_actions.appendChild(downloadLink);
+        gg = null;
     }
 }
 
 (function(open) {
     XMLHttpRequest.prototype.open = function() {
         this.addEventListener("readystatechange", function() {
-            if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/') || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/')
-) {
+            if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/')
+                || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/')
+                || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/genealogy-graph/')) {
                 if (this.readyState == 2) {
                     this.responseType='json';
                 }
                 if (this.readyState == 4) {
+                    if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/genealogy-graph/')) {
+                        gg = this.response.data;
+                        if (gg != null) {
+                            addMyControls();
+                        }
+                    }
                     if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/')) {
                         if (this.response.relatives) {
                             const u = new URL(this.responseURL);
                             const tubeId = u.pathname.substring(u.pathname.lastIndexOf('/') + 1);
                             relatives.set(tubeId, this.response.relatives);
                             if (getCurrentTubeId() === tubeId) {
+                                addMyControls();
+                            }
+                        }
+                        if (this.responseURL.includes('/genealogy-graph/')) {
+                            gg = this.response.data;
+                            if (gg != null) {
                                 addMyControls();
                             }
                         }
@@ -366,9 +664,12 @@ function addMyControls() {
 })(XMLHttpRequest.prototype.open);
 
 observeDOM(document.body, function(m) {
-   if (relatives.has(getCurrentTubeId())) {
+    if (relatives.has(getCurrentTubeId())) {
       addMyControls();
-   }
+    }
+    if (gg != null) {
+        addMyControls();
+    }
 });
 
 console.log('Uꞑ');
