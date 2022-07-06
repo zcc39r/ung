@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.3.1
+// @version     1.3.2
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -351,8 +351,8 @@ function dateToString(d) {
 
 function addPlace(d, places, name, type, ref) {
     let place = d.createElement('placeobj');
-    place.setAttribute('handle', name);
-    place.setAttribute('id', name);
+    place.setAttribute('handle', name.trim().replaceAll(' ', ''));
+    place.setAttribute('id', name.trim().replaceAll(' ', ''));
     place.setAttribute('type', type);
     let e = d.createElement('ptitle');
     e.innerHTML = name;
@@ -373,34 +373,40 @@ function processPlace(d, places, place) {
 
     const { country, region, area, city, settlement } = place;
     if (country != null) {
-        if (places.querySelector('#' + country) == null) {
+        placeId = country.trim().replaceAll(' ', '');
+        if (places.querySelector('#' + placeId) == null) {
             addPlace(d, places, country, 'Country', null);
         }
-        placeId = country;
     }
     if (region != null) {
-        if (places.querySelector('#' + region) == null) {
+        placeId = region.trim().replaceAll(' ', '');
+        if (places.querySelector('#' + placeId) == null) {
             addPlace(d, places, region, 'State', country);
         }
-        placeId = region;
     }
     if (area != null) {
-        if (places.querySelector('#' + area) == null) {
+        placeId = area.trim().replaceAll(' ', '');
+        if (places.querySelector('#' + placeId) == null) {
             addPlace(d, places, area, 'County', region || country);
         }
-        placeId = area;
     }
     if (city != null) {
-        if (places.querySelector('#' + city) == null) {
+        placeId = city.trim().replaceAll(' ', '');
+        if (places.querySelector('#' + placeId) == null) {
             addPlace(d, places, city, 'City', area || region || country);
         }
-        placeId = city;
     }
     if (settlement != null) {
-        if (places.querySelector('#' + settlement) == null) {
+        placeId = settlement.trim().replaceAll(' ', '');
+        if (places.querySelector('#' + placeId) == null) {
             addPlace(d, places, settlement, 'Village', city || area || region || country);
         }
-        placeId = settlement;
+    }
+    if (placeId == null && place && place.trim().length > 0) {
+        placeId = place.trim().replaceAll(' ', '');
+        if (places.querySelector('#' + placeId) == null) {
+            addPlace(d, places, place.trim(), 'Unknown', null);
+        }
     }
 
     return placeId;
@@ -519,14 +525,14 @@ function getGGContent() {
         }
         person.appendChild(name);
         if (n.card.birthdate.length > 0) {
-            const eventId = addEvent(d, events, places, 'Birth', n.card.birthdate[0], n.card.birthplaceParsed, null);
+            const eventId = addEvent(d, events, places, 'Birth', n.card.birthdate[0], (n.card.birthplaceParsed.length > 0) ? n.card.birthplaceParsed : n.card.birthplace, null);
             e = d.createElement('eventref');
             e.setAttribute('hlink', eventId);
             e.setAttribute('role', 'Primary');
             person.appendChild(e);
         }
         if (n.card.deathdate.length > 0 && n.card.liveOrDead === 0) {
-            const eventId = addEvent(d, events, places, 'Death', n.card.deathdate[0], n.card.deathplaceParsed, null);
+            const eventId = addEvent(d, events, places, 'Death', n.card.deathdate[0], (n.card.deathplaceParsed.length > 0) ? n.card.deathplaceParsed : n.card.deathplace, null);
             e = d.createElement('eventref');
             e.setAttribute('hlink', eventId);
             e.setAttribute('role', 'Primary');
