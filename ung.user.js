@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.3.3
+// @version     1.3.4
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -15,6 +15,17 @@ var relatives = new Map();
 var allTubesAvailable = new Map();
 var me;
 var gg;
+
+String.prototype.hashCode = function() {
+  var hash = 0, i, chr;
+  if (this.length === 0) return hash;
+  for (i = 0; i < this.length; i++) {
+    chr = this.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+};
 
 var observeDOM = (function(){
   var MutationObserver = window.MutationObserver || window.WebKitMutationObserver;
@@ -351,8 +362,9 @@ function dateToString(d) {
 
 function addPlace(d, places, name, type, ref) {
     let place = d.createElement('placeobj');
-    place.setAttribute('handle', name.trim().replaceAll(' ', ''));
-    place.setAttribute('id', name.trim().replaceAll(' ', ''));
+    const pid = 'pi' + name.hashCode();
+    place.setAttribute('handle', pid);
+    place.setAttribute('id', pid);
     place.setAttribute('type', type);
     let e = d.createElement('ptitle');
     e.innerHTML = name;
@@ -373,39 +385,39 @@ function processPlace(d, places, place) {
 
     const { country, region, area, city, settlement } = place;
     if (country != null) {
-        placeId = country.trim().replaceAll(' ', '');
+        placeId = 'pi' + country.hashCode();
         if (places.querySelector('#' + placeId) == null) {
             addPlace(d, places, country, 'Country', null);
         }
     }
     if (region != null) {
-        placeId = region.trim().replaceAll(' ', '');
+        placeId = 'pi' + region.hashCode();
         if (places.querySelector('#' + placeId) == null) {
-            addPlace(d, places, region, 'State', country);
+            addPlace(d, places, region, 'State', country && ('pi' + country.hashCode()));
         }
     }
     if (area != null) {
-        placeId = area.trim().replaceAll(' ', '');
+        placeId = 'pi' + area.hashCode();
         if (places.querySelector('#' + placeId) == null) {
-            addPlace(d, places, area, 'County', region || country);
+            addPlace(d, places, area, 'County', region && ('pi' + region.hashCode()) || country && ('pi' + country.hashCode()));
         }
     }
     if (city != null) {
-        placeId = city.trim().replaceAll(' ', '');
+        placeId = 'pi' + city.hashCode();
         if (places.querySelector('#' + placeId) == null) {
-            addPlace(d, places, city, 'City', area || region || country);
+            addPlace(d, places, city, 'City', area && ('pi' + area.hashCode()) || region && ('pi' + region.hashCode()) || country && ('pi' + country.hashCode()));
         }
     }
     if (settlement != null) {
-        placeId = settlement.trim().replaceAll(' ', '');
+        placeId = 'pi' + settlement.hashCode();
         if (places.querySelector('#' + placeId) == null) {
-            addPlace(d, places, settlement, 'Village', city || area || region || country);
+            addPlace(d, places, settlement, 'Village', city && ('pi' + city.hashCode()) || area && ('pi' + area.hashCode()) || region && ('pi' + region.hashCode()) || country && ('pi' + country.hashCode()));
         }
     }
-    if (placeId == null && place && place.trim().length > 0) {
-        placeId = place.trim().replaceAll(' ', '');
+    if (placeId == null && place && place.length > 0) {
+        placeId = 'pi' + place.hashCode();
         if (places.querySelector('#' + placeId) == null) {
-            addPlace(d, places, place.trim(), 'Unknown', null);
+            addPlace(d, places, place, 'Unknown', null);
         }
     }
 
@@ -473,7 +485,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.3.1');
+    e.setAttribute('version', 'Uꞑ-1.3.4');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
@@ -619,7 +631,7 @@ function addMyControls() {
         downloadLink.innerHTML = '<i class="fa fa-download fa-lg" aria-hidden="true"></i>';
         toolbar.appendChild(downloadLink);
     }
-    const tree_actions = document.querySelector('.find-relation-graph__modal-header, app-genealogical-tree h1 span');
+    const tree_actions = document.querySelector('.find-relation-graph__modal-header, app-genealogical-tree div.main-header__title');
     if (gg != null && tree_actions && tree_actions.querySelector('#unggg') === null) {
         let downloadLink = document.createElement('a');
         downloadLink.setAttribute('href', 'data:application/xml;charset=utf-8,' + encodeURIComponent(getGGContent()));
@@ -648,19 +660,20 @@ function addMyControls() {
                         }
                     }
                     if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/')) {
-                        let rels = null;
-                        if (this.response.data) {
-                           rels = JSON.parse(decodeURIComponent(escape(atob(this.response.data)))).relatives;
-                        }
-                        if (rels != null) {
-                            const u = new URL(this.responseURL);
-                            const tubeId = u.pathname.substring(u.pathname.lastIndexOf('/') + 1);
-                            relatives.set(tubeId, rels);
-                            if (getCurrentTubeId() === tubeId) {
-                                addMyControls();
+                        if (!this.responseURL.includes('/genealogy-graph/')) {
+                            let rels = null;
+                            if (this.response.data) {
+                               rels = JSON.parse(decodeURIComponent(escape(atob(this.response.data)))).relatives;
                             }
-                        }
-                        if (this.responseURL.includes('/genealogy-graph/')) {
+                            if (rels != null) {
+                                const u = new URL(this.responseURL);
+                                const tubeId = u.pathname.substring(u.pathname.lastIndexOf('/') + 1);
+                                relatives.set(tubeId, rels);
+                                if (getCurrentTubeId() === tubeId) {
+                                    addMyControls();
+                                }
+                            }
+                        } else {
                             gg = this.response.data;
                             if (gg != null) {
                                 addMyControls();
