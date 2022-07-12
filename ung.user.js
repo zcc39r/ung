@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.3.2
+// @version     1.3.3
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -648,10 +648,14 @@ function addMyControls() {
                         }
                     }
                     if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/')) {
-                        if (this.response.relatives) {
+                        let rels = null;
+                        if (this.response.data) {
+                           rels = JSON.parse(decodeURIComponent(escape(atob(this.response.data)))).relatives;
+                        }
+                        if (rels != null) {
                             const u = new URL(this.responseURL);
                             const tubeId = u.pathname.substring(u.pathname.lastIndexOf('/') + 1);
-                            relatives.set(tubeId, this.response.relatives);
+                            relatives.set(tubeId, rels);
                             if (getCurrentTubeId() === tubeId) {
                                 addMyControls();
                             }
