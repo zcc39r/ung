@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.4
+// @version     1.4.1
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -316,11 +316,11 @@ function addEvent(elm, evType, fn, useCapture) {
     <th class="c" id="1">Возраст</th>
     <th class="c" id="2">Пол</th>
     <th class="c" id="3">Сумма IBD-сегментов</th>
-    <th class="c" id="3">% совпадения</th>
-    <th class="c" id="3">Макс. IBD-сегмент</th>
-    <th class="c" id="4">Mt</th>
-    <th class="c" id="5">Y</th>
-    <th class="c" id="6">Дата</th>
+    <th class="c" id="4">% совпадения</th>
+    <th class="c" id="5">Макс. IBD-сегмент</th>
+    <th class="c" id="6">Mt</th>
+    <th class="c" id="7">Y</th>
+    <th class="c" id="8">Дата</th>
     <th class="c">Возможные фамилии</th>
     <th class="c">Возможные места рождения</th>
     </tr>
@@ -495,7 +495,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.4');
+    e.setAttribute('version', 'Uꞑ-1.4.1');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
