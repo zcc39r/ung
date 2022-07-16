@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.3.4
+// @version     1.4
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -43,6 +43,10 @@ var observeDOM = (function(){
     }
   }
 })()
+
+function placeRepresentation(p) {
+    return Object.keys(p).map(key => p[key]).join(' ');
+}
 
 function getCurrentTubeId() {
     const currentPatient = JSON.parse(unsafeWindow.localStorage.getItem('currentPatient'));
@@ -286,7 +290,6 @@ function ts_sort_default(a,b) {
     return 1;
 }
 
-
 function addEvent(elm, evType, fn, useCapture) {
   if (elm.addEventListener){
     elm.addEventListener(evType, fn, useCapture);
@@ -298,7 +301,8 @@ function addEvent(elm, evType, fn, useCapture) {
     alert("Handler could not be removed");
   }
 }
-    </script>
+
+  </script>
     </head>
     <body>
     <div>
@@ -312,10 +316,13 @@ function addEvent(elm, evType, fn, useCapture) {
     <th class="c" id="1">Возраст</th>
     <th class="c" id="2">Пол</th>
     <th class="c" id="3">Сумма IBD-сегментов</th>
+    <th class="c" id="3">% совпадения</th>
+    <th class="c" id="3">Макс. IBD-сегмент</th>
     <th class="c" id="4">Mt</th>
     <th class="c" id="5">Y</th>
     <th class="c" id="6">Дата</th>
     <th class="c">Возможные фамилии</th>
+    <th class="c">Возможные места рождения</th>
     </tr>
     </thead>
     <tbody>`;
@@ -324,10 +331,13 @@ function addEvent(elm, evType, fn, useCapture) {
     <td class="c">${r.relative_info.age || '-'}</td>
     <td class="c">${r.relative_info.gender === 'male' ? 'М' : 'Ж'}</td>
     <td class="c">${Math.round(r.tube_relative.totalCm || 0)}</td>
+    <td class="c">${r.tube_relative.totalPercent || 0}</td>
+    <td class="c">${Math.round(r.tube_relative.largestIBDCm || 0)}</td>
     <td class="c">${r.tube_relative.maternalHaplogroup || ''}</td>
     <td class="c">${r.tube_relative.paternalHaplogroup || ''}</td>
     <td class="c">${r.tube_relative.date || ''}</td>
     <td class="c">${(r.tube_relative.genealogicalTreeSurnames || []).sort().join(', ')}</td>
+    <td class="c">${(r.tube_relative.genealogicalTreeBirthplaces || []).map(p => placeRepresentation(p)).join(', ')}</td>
     </tr>`});
     c += `</tbody>
     </table>
@@ -485,7 +495,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.3.4');
+    e.setAttribute('version', 'Uꞑ-1.4');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
