@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.5.0
+// @version     1.5.1
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -349,7 +349,7 @@ function addEvent(elm, evType, fn, useCapture) {
 }
 
 function getRootPersonId() {
-    return gg.nodes.find(n => n.relationName === 'Я').id;
+    return gg.nodes.find(n => n.relationName === '' && !(n.id.startsWith('imaginary') || n.id.startsWith('fake'))).id;
 }
 
 function dateToString(d) {
@@ -497,7 +497,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.5.0');
+    e.setAttribute('version', 'Uꞑ-1.5.1');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
@@ -659,13 +659,12 @@ function addMyControls() {
     XMLHttpRequest.prototype.open = function() {
         this.addEventListener("readystatechange", function() {
             if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/site/1/relatives/')
-                || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/')
-                || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/genealogy-graph/')) {
+                || this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/')) {
                 if (this.readyState == 2) {
                     this.responseType='json';
                 }
                 if (this.readyState == 4) {
-                    if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/genealogy-graph/')) {
+                    if (this.responseURL.includes('/genealogy-graph/')) {
                         gg = this.response.data;
                         if (gg != null) {
                             addMyControls();
