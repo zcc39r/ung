@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.5.1
+// @version     1.6.0
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -15,6 +15,8 @@ var relatives = new Map();
 var allTubesAvailable = new Map();
 var me;
 var gg;
+var minId = Number.MAX_VALUE;
+var maxId = 0;
 
 String.prototype.hashCode = function() {
   var hash = 0, i, chr;
@@ -343,6 +345,7 @@ function addEvent(elm, evType, fn, useCapture) {
     </tr>`});
     c += `</tbody>
     </table>
+    <p><small>${minId}/${maxId}</small></p>
     </body>
     </html>`;
     return c;
@@ -497,7 +500,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.5.1');
+    e.setAttribute('version', 'Uꞑ-1.6.0');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
@@ -677,6 +680,10 @@ function addMyControls() {
                                rels = JSON.parse(decodeURIComponent(escape(atob(this.response.data)))).relatives;
                             }
                             if (rels != null) {
+                                const ids = rels.map(x => Number(x.relative_info.user_id));
+                                minId = Math.min(...ids, minId);
+                                maxId = Math.max(...ids, maxId);
+                                console.log(minId, rels.filter(x => x.relative_info.user_id == minId));
                                 const u = new URL(this.responseURL);
                                 const tubeId = u.pathname.substring(u.pathname.lastIndexOf('/') + 1);
                                 relatives.set(tubeId, rels);
@@ -693,6 +700,7 @@ function addMyControls() {
                     }
                     if (this.responseURL.startsWith('https://lk2-back.genotek.ru/api/v1/patients/') && this.response.patients) {
                         me = this.response;
+                        console.log(me);
                     }
                 }
             }
