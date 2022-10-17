@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.6.0
+// @version     1.6.1
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -51,12 +51,12 @@ function placeRepresentation(p) {
 }
 
 function getCurrentTubeId() {
-    const currentPatient = JSON.parse(unsafeWindow.localStorage.getItem('currentPatient'));
+    const currentPatient = JSON.parse(decodeURIComponent(atob(unsafeWindow.localStorage.getItem('currentPatient'))));
     return ((currentPatient || {}).tubeId || '').toUpperCase();
 }
 
 function getCurrentName() {
-    const currentPatient = JSON.parse(unsafeWindow.localStorage.getItem('currentPatient'));
+    const currentPatient = JSON.parse(decodeURIComponent(atob(unsafeWindow.localStorage.getItem('currentPatient'))));
     return `${(currentPatient || {}).name || ''} ${(currentPatient || {}).lastName || ''}`;
 }
 
@@ -500,7 +500,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.6.0');
+    e.setAttribute('version', 'Uꞑ-1.6.1');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
@@ -719,3 +719,4 @@ observeDOM(document.body, function(m) {
 });
 
 console.log('Uꞑ');
+
