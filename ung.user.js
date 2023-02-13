@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.6.1
+// @version     1.6.12
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -453,7 +453,7 @@ function addEvent(d, events, places, type, date, place, id) {
         e.setAttribute('val', x);
         event.appendChild(e);
     }
-    if (place != null && place.length > 0) {
+    if (place != null && place.length > 0) {ф
         const placeId = processPlace(d, places, place[0]);
         if (placeId != null) {
             e = d.createElement('place');
@@ -500,7 +500,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.6.1');
+    e.setAttribute('version', 'Uꞑ-1.6.2');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
@@ -643,7 +643,7 @@ function addMyControls() {
         downloadLink.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(getRelativesContent()));
         downloadLink.setAttribute('download', 'ung.html');
         downloadLink.setAttribute('id', 'ung');
-        downloadLink.innerHTML = '<i class="fa fa-download fa-lg" aria-hidden="true"></i>';
+        downloadLink.innerHTML = '<i class="icon-download" aria-hidden="true"></i>';
         toolbar.appendChild(downloadLink);
     }
     const tree_actions = document.querySelector('.find-relation-graph__modal-header, app-genealogical-tree div.main-header__title');
@@ -652,7 +652,7 @@ function addMyControls() {
         downloadLink.setAttribute('href', 'data:application/xml;charset=utf-8,' + encodeURIComponent(getGGContent()));
         downloadLink.setAttribute('download', 'ung.gramps');
         downloadLink.setAttribute('id', 'unggg');
-        downloadLink.innerHTML = '<i class="fa fa-download fa-lg" aria-hidden="true"></i>';
+        downloadLink.innerHTML = '<i class="icon-download" aria-hidden="true"></i>';
         tree_actions.appendChild(downloadLink);
         gg = null;
     }
@@ -719,4 +719,3 @@ observeDOM(document.body, function(m) {
 });
 
 console.log('Uꞑ');
-
