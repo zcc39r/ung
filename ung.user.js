@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.6.12
+// @version     1.6.2
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
