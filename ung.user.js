@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Uꞑ
 // @namespace   http://tampermonkey.net/
-// @version     1.6.2
+// @version     1.6.3
 // @description Export relatives data from Genotek account
 // @author      Rustam Usmanov
 // @match       https://lk.genotek.ru/*
@@ -453,7 +453,7 @@ function addEvent(d, events, places, type, date, place, id) {
         e.setAttribute('val', x);
         event.appendChild(e);
     }
-    if (place != null && place.length > 0) {ф
+    if (place != null && place.length > 0) {
         const placeId = processPlace(d, places, place[0]);
         if (placeId != null) {
             e = d.createElement('place');
@@ -500,7 +500,7 @@ function getGGContent() {
     root.appendChild(h);
     let e = d.createElement('created');
     e.setAttribute('date', new Date().toISOString().slice(0, 10));
-    e.setAttribute('version', 'Uꞑ-1.6.2');
+    e.setAttribute('version', 'Uꞑ-1.6.3');
     h.appendChild(e);
     let rs = d.createElement('researcher');
     e = d.createElement('resname');
